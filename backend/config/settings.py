@@ -29,7 +29,9 @@ INSTALLED_APPS = [
     
     'brain',
     'rest_framework',
+    'rest_framework.authtoken',
     'djoser',
+    'django_neomodel',
 ]
 
 MIDDLEWARE = [
@@ -129,3 +131,9 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+DJOSER = {
+    'TOKEN_MODEL': None,
+}
+
+NEOMODEL_NEO4J_BOLT_URL = f'bolt://{config("NEO4J_USERNAME")}:{config("NEO4J_PASSWORD")}@localhost:7687'
