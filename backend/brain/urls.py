@@ -3,5 +3,10 @@ from .views import *
 
 urlpatterns = [
     path('check_connection/', check_connection, name='check_connection'),
+    
+    path('api/people/', PeopleView.as_view(), name='people'),
+    path('api/people/<str:uid>/', PeopleView.as_view(), name='people-detail-delete'),
+    
+    path('api/projects/', ProjectsView.as_view(), name='projects'),
     path('api/entries/', EntryListCreateView.as_view(), name='entry_list'),
 ]

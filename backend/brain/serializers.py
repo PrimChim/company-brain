@@ -92,3 +92,11 @@ class EntrySerializer(serializers.Serializer):
                 pass
 
         return entry
+    
+class ProjectSerializer(serializers.Serializer):
+    uid = serializers.CharField(read_only=True)
+    name = serializers.CharField()
+    description = serializers.CharField()
+    
+    def create(self, validated_data):
+        return Project(**validated_data).save()

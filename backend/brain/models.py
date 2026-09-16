@@ -17,7 +17,8 @@ class Person(DjangoNode):
 
 class Project(DjangoNode):
     uid = UniqueIdProperty()
-    name = StringProperty(required=True)
+    name = StringProperty(required=True, unique_index=True)
+    description = StringProperty()
 
 # Custom relationship to handle relationships between entries (e.g., depends_on, resolves)
 class EntryToEntryRel(StructuredRel):
