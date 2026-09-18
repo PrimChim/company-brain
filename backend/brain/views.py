@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
+from neomodel import db
 from .models import *
 from .serializers import *
 
@@ -72,3 +73,60 @@ class ProjectsView(APIView):
                 return Response(serializer.data ,status=status.HTTP_201_CREATED)
             except:
                 return Response({"error":"Project with same name already exists!"}, status=status.HTTP_409_CONFLICT)
+
+
+
+# 1) Entries related to person, project, or both
+class EntryFilteredListView(APIView):
+    def get(self, request):
+        person_id = request.query_params.get('personId')
+        project_id = request.query_params.get('projectId')
+
+        # Base pattern matching Entry
+        query = "MATCH (e:Entry) "
+        where_clauses = []
+        params = {}
+
+        if project_id:
+            where_clauses.append("EXISTS { (e)-[:BELONGS_TO]->(:Project {uid: $project_id}) }")
+            params['project_id'] = project_id
+
+        if person_id:
+            where_clauses.append("EXISTS { (e)-[:INVOLVES]->(:Person {uid: $person_id}) }")
+            params['person_id'] = person_id
+
+        if where_clauses:
+            query += "WHERE " + " AND ".join(where_clauses) + " "
+
+        query += "RETURN e"
+
+        results, _ = db.cypher_query(query, params)
+        entries = [Entry.inflate(row[0]) for row in results]
+
+        return Response(EntrySerializer(entries, many=True).data, status=status.HTTP_200_OK)
+
+
+# 2) Projects involving a specific person
+class PersonProjectsListView(APIView):
+    def get(self, request, uid):
+        query = """
+        MATCH (p:Person {uid: $uid})<-[:INVOLVES]-(e:Entry)-[:BELONGS_TO]->(pr:Project)
+        RETURN DISTINCT pr
+        """
+        results, _ = db.cypher_query(query, {"uid": uid})
+        projects = [Project.inflate(row[0]) for row in results]
+
+        return Response(ProjectSerializer(projects, many=True).data, status=status.HTTP_200_OK)
+
+
+# 3) People involved in a specific project
+class ProjectPeopleListView(APIView):
+    def get(self, request, uid):
+        query = """
+        MATCH (pr:Project {uid: $uid})<-[:BELONGS_TO]-(e:Entry)-[:INVOLVES]->(p:Person)
+        RETURN DISTINCT p
+        """
+        results, _ = db.cypher_query(query, {"uid": uid})
+        people = [Person.inflate(row[0]) for row in results]
+
+        return Response(PersonSerializer(people, many=True).data, status=status.HTTP_200_OK)

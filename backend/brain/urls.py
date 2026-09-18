@@ -8,5 +8,6 @@ urlpatterns = [
     path('api/people/<str:uid>/', PeopleView.as_view(), name='people-detail-delete'),
     
     path('api/projects/', ProjectsView.as_view(), name='projects'),
-    path('api/entries/', EntryListCreateView.as_view(), name='entry_list'),
+    path('api/entries/', EntryListCreateView.as_view(), name='entry'),
+    path('api/entries/retrieve/', EntryFilteredListView.as_view(), name='entry-list'),
 ]
