@@ -30,6 +30,12 @@ class EntryListCreateView(APIView):
     
 class PeopleView(APIView):
     
+    # retrieve people
+    def get(self, request):
+        people = Person.nodes.all()
+        serializer = PersonSerializer(people, many=True)
+        return Response(serializer.data)
+    
     # add people node
     def post(self, request):
         serializer = PersonSerializer(data=request.data)
@@ -62,6 +68,60 @@ class PeopleView(APIView):
         )
         
 class ProjectsView(APIView):
+
+    # retrieve people
+    def get(self, request):
+        # Cypher query to fetch projects along with connected entries & team members
+        query = """
+        MATCH (pr:Project)
+        OPTIONAL MATCH (e:Entry)-[:BELONGS_TO]->(pr)
+        OPTIONAL MATCH (e)-[:INVOLVES]->(p:Person)
+        WITH pr, 
+             count(DISTINCT e) AS connected_entries_count, 
+             collect(DISTINCT p) AS team_members
+        RETURN pr, connected_entries_count, team_members
+        """
+        results, _ = db.cypher_query(query)
+        
+        projects_data = []
+        total_entries_count = 0
+        all_unique_people = set()
+
+        for row in results:
+            pr_node = row[0]
+            entries_count = row[1] or 0
+            people_nodes = [p for p in row[2] if p]
+
+            total_entries_count += entries_count
+            for p in people_nodes:
+                all_unique_people.add(p.get('uid'))
+
+            members_list = [
+                {
+                    "id": p.get('uid'),
+                    "name": p.get('name'),
+                    "role": p.get('role', '')
+                } for p in people_nodes
+            ]
+
+            projects_data.append({
+                "id": pr_node.get('uid'),
+                "name": pr_node.get('name'),
+                "connected_entries_count": entries_count,
+                "team_members_count": len(members_list),
+                "team_members": members_list
+            })
+
+        response_payload = {
+            "summary": {
+                "active_projects": len(projects_data),
+                "total_connected_entries": total_entries_count,
+                "total_team_members": len(all_unique_people)
+            },
+            "projects": projects_data
+        }
+
+        return Response(response_payload, status=status.HTTP_200_OK)
     
     # add project node
     def post(self, request):

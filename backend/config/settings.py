@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
+    'corsheaders',
     'brain',
     'rest_framework',
     'rest_framework.authtoken',
@@ -37,6 +38,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -136,4 +138,24 @@ DJOSER = {
     'TOKEN_MODEL': None,
 }
 
-NEOMODEL_NEO4J_BOLT_URL = f'bolt://{config("NEO4J_USERNAME")}:{config("NEO4J_PASSWORD")}@localhost:7687'
+is_docker = config("IS_DOCKER", False)
+
+NEOMODEL_NEO4J_BOLT_URL=''
+
+if is_docker:
+    NEOMODEL_NEO4J_BOLT_URL = f'bolt://{config("NEO4J_USERNAME")}:{config("NEO4J_PASSWORD")}@neo4j:7687'
+else:
+    NEOMODEL_NEO4J_BOLT_URL = f'bolt://{config("NEO4J_USERNAME")}:{config("NEO4J_PASSWORD")}@localhost:7687'
+    
+# Allow Next.js dev server
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+# If sending credentials/cookies (e.g. session auth, JWT in HTTP-only cookies):
+CORS_ALLOW_CREDENTIALS = True
+
+# openAI credentials
+llm_base_url = config('LLM_BASE_URL')
+llm_secret_key = config('LLM_SECRET_KEY')
