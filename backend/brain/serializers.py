@@ -36,12 +36,14 @@ class EntrySerializer(serializers.Serializer):
     createdBy = serializers.CharField(write_only=True, required=False)
     editedByIds = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
     relatedEntries = RelatedEntryInputSerializer(many=True, write_only=True, required=False)
+    involvedIds = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
 
     # READ-ONLY FIELDS
     project = serializers.SerializerMethodField(read_only=True)
     created_by = serializers.SerializerMethodField(read_only=True)
     edited_by = serializers.SerializerMethodField(read_only=True)
     related = serializers.SerializerMethodField(read_only=True)
+    involves = serializers.SerializerMethodField(read_only=True)
 
     def get_project(self, obj):
         proj = obj.project.single()
@@ -53,6 +55,9 @@ class EntrySerializer(serializers.Serializer):
 
     def get_edited_by(self, obj):
         return [{"id": p.uid, "name": p.name, "role": p.role} for p in obj.edited_by.all()]
+
+    def get_involves(self, obj):
+        return [{"id": p.uid, "name": p.name, "role": p.role} for p in obj.involves.all()]
 
     def get_related(self, obj):
         related_data = []
@@ -75,6 +80,7 @@ class EntrySerializer(serializers.Serializer):
         created_by_id = validated_data.pop('createdBy', None)
         edited_by_ids = validated_data.pop('editedByIds', [])
         related_entries = validated_data.pop('relatedEntries', [])
+        involved_ids = validated_data.pop('involvedIds', [])
 
         # 2. Create base Entry node
         entry = Entry(**validated_data).save()
@@ -102,7 +108,15 @@ class EntrySerializer(serializers.Serializer):
             except Person.DoesNotExist:
                 pass
 
-        # 6. Connect related Entries
+        # 6. Connect Involved People (INVOLVES)
+        for pid in involved_ids:
+            try:
+                person_node = Person.nodes.get(uid=pid)
+                entry.involves.connect(person_node)
+            except Person.DoesNotExist:
+                pass
+
+        # 7. Connect related Entries
         for rel in related_entries:
             try:
                 target_entry = Entry.nodes.get(uid=rel['target_id'])

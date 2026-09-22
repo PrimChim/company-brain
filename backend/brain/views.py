@@ -23,8 +23,8 @@ class EntryListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
+        print(request.data)
         serializer = EntrySerializer(data=request.data)
-        print(serializer, request.data)
         if serializer.is_valid():
             entry = serializer.save()
             return Response(EntrySerializer(entry).data, status=status.HTTP_201_CREATED)
