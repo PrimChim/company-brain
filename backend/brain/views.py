@@ -10,6 +10,7 @@ from neomodel import db
 from .models import *
 from .serializers import *
 
+from .utils import parse_intent_from_prompt, build_cypher_query, execute_entry_query
 
 def check_connection(request):
     connection = verify_connection()
@@ -23,10 +24,35 @@ class EntryListCreateView(APIView):
 
     def post(self, request):
         serializer = EntrySerializer(data=request.data)
+        print(serializer, request.data)
         if serializer.is_valid():
             entry = serializer.save()
             return Response(EntrySerializer(entry).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, uid=None):
+        if not uid:
+            return Response(
+                {"error": "UID parameter is required for deletion."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        entry = Entry.nodes.first_or_none(uid=uid)
+        
+        if not entry:
+            return Response(
+                {"error": "Person with this UID does not exist."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Deletes the node and its relationships in Neo4j
+        entry.delete()
+        
+        return Response(
+            {"message": f"Entry deleted successfully!"}, 
+            status=status.HTTP_200_OK
+        )
+
     
 class PeopleView(APIView):
     
@@ -190,3 +216,45 @@ class ProjectPeopleListView(APIView):
         people = [Person.inflate(row[0]) for row in results]
 
         return Response(PersonSerializer(people, many=True).data, status=status.HTTP_200_OK)
+
+# 4) Natural language layer
+class NaturalLanguageQueryView(APIView):
+    """
+    POST /api/query/nlp/
+    Payload: {"prompt": "Show me all open tasks for Pritam in EventFlow"}
+    """
+    def post(self, request):
+        user_prompt = request.data.get('prompt', '').strip()
+
+        if not user_prompt:
+            return Response(
+                {"error": "A 'prompt' string field is required."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 1. Parse natural language prompt into structured JSON
+        try:
+            parsed_intent = parse_intent_from_prompt(user_prompt)
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to parse query intent: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # 2. Build Cypher query & Execute against Neo4j
+        try:
+            query, params = build_cypher_query(parsed_intent)
+            entries = execute_entry_query(query, params)
+            
+            serializer = EntrySerializer(entries, many=True)
+            return Response({
+                "parsed_intent": parsed_intent,
+                "results_count": len(entries),
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {"error": f"Database execution error: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

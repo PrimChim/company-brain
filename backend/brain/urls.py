@@ -9,5 +9,8 @@ urlpatterns = [
     
     path('api/projects/', ProjectsView.as_view(), name='projects'),
     path('api/entries/', EntryListCreateView.as_view(), name='entry'),
+    path('api/entries/<str:uid>/', EntryListCreateView.as_view(), name='delete-entry'),
     path('api/entries/retrieve/', EntryFilteredListView.as_view(), name='entry-list'),
+
+    path('api/nlp/', NaturalLanguageQueryView.as_view(), name='nlp-query'),
 ]
