@@ -26,6 +26,30 @@ services:
 
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: dockerfile
+      
+    container_name: company_brain_frontend
+
+    command: npm run dev
+
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+    ports:
+      - "3000:3000"
+
+    env_file:
+      - .env.docker
+
+    depends_on:
+      backend:
+        condition: service_started
+
+    restart: unless-stopped
 
   postgres:
     image: postgres:15-alpine
